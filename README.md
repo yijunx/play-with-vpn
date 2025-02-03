@@ -35,7 +35,7 @@ Now let's begin!
 ## create a vm on gcp
 
 Create instance at compute engine with below config
-* e2-micro
+* e2-micro (cheapest so far)
 * ubuntu
 * default network, enable IP forwarding
 * use a reserved static ip, if you want to pay a bit more, but just make sure it has an external ip
