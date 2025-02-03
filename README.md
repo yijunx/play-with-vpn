@@ -1,6 +1,6 @@
 # play-with-vpn
 how to setup vpn with gcp. Credit to https://dhanangw.medium.com/setup-wireguard-vpn-in-google-cloud-platform-67ddb692b2d8. 
-great post, however, there is some issue with the client section (dated 20250203). it says `Replace <PRIVATE-IP-OF-WIREGUARD-SERVER> to “10.0.0.1/24”`. at
+great post, however, there is some issue with the client section (dated 20250203). it says `Replace <PRIVATE-IP-OF-WIREGUARD-SERVER> to “10.0.0.1/24”`. at its mobile.conf (client side)
 
 ```
 [Interface]
@@ -27,6 +27,8 @@ sudo wg show wg
 ```
 
 also, the client/peer of the server, is stored in memory, it is not explicitly shown in the `/etc/wireguard/wg0.conf`. this makes the whole process not declarative.
+
+Now let's begin!
 
 
 
