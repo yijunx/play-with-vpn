@@ -1,5 +1,33 @@
 # play-with-vpn
-how to setup vpn with gcp
+how to setup vpn with gcp. Credit to https://dhanangw.medium.com/setup-wireguard-vpn-in-google-cloud-platform-67ddb692b2d8. 
+great post, however, there is some issue with the client section (dated 20250203). it says `Replace <PRIVATE-IP-OF-WIREGUARD-SERVER> to “10.0.0.1/24”`. at
+
+```
+[Interface]
+PrivateKey = <CLIENT’S-PRIVATE-KEY>
+Address = <PRIVATE-IP-OF-WIREGUARD-SERVER>/24
+DNS = 1.1.1.1, 1.0.0.1
+MTU = 1360
+[Peer]
+PublicKey = <YOUR-SERVER'S-PUBLIC-KEY>
+AllowedIPs = 0.0.0.0/0
+Endpoint = <STATIC-IP-OF-GCP-INSTANCE>:51820
+```
+
+however it should be 10.0.0.2/24. because when the peer is added to server, it is using 10.0.0.2, as below.
+
+```
+sudo wg set wg0 peer <YOUR_CLIENT_PUBLIC_KEY> allowed-ips <YOUR_CLIENT_VPN_IP>
+```
+
+then it says: 
+```
+Replace <YOUR_CLIENT_VPN_IP> to 10.0.0.2/32 Make sure your client already added to server.
+sudo wg show wg
+```
+
+also, the client/peer of the server, is stored in memory, it is not explicitly shown in the `/etc/wireguard/wg0.conf`. this makes the whole process not declarative.
+
 
 
 ## create a vm on gcp
@@ -8,45 +36,65 @@ Create instance (e2-micro/ubuntu/default network, enable IP forwarding, use a re
 now we need to add filewall rules to allow udp:51820 and tcp:22. so vpn and ssh can pass
 
 
+## install wireguard on vm
+
 commands
 
 ```
 sudo apt update && sudo apt upgrade -y
-
 sudo apt install wireguard -y
-
-# get all the keys
-wg genkey | tee server_private.key | wg pubkey > server_public.key
-wg genkey | tee client_private.key | wg pubkey > client_public.key
-
-
 ```
 
 
-server_private.key 
+## generate server and client key pairs
+
+here for clients, we use one device per client. if 2 phones using same client, lag is significant.
+
+```
+# do the server just once, then record the value
+wg genkey | tee server_private.key | wg pubkey > server_public.key
+
+# do below many times and record the valye
+wg genkey | tee client_private.key | wg pubkey > client_public.key
+```
+
+in the end we will have (suppose i want to do it for me and my wife). save this elsewhere.
+
+```
+# server private
 SERVER/PRIVATE=
-server_public.key 
+# server public
 SERVER/PUBLIC=
 
 
-client1 private
+# client1 private
 CLIENT1/PRIVATE=
-client2 public
+# client2 public
 CLIENT1/PUBLIC=
 
-client2 private
+# client2 private
 CLIENT2/PRIVATE=
-client2 public key
+# client2 public key
 CLIENT2/PUBLIC=
 
+...
+```
 
+## now need to find the network config
 
-now to get the `ens4` 
+now to get the `ens4`. well i need to study what it is..
 
+```
 root@instance-20250202-093114:/home/yourname# ip -o -4 route show to default | awk '{print $5}'
 ens4
+```
 
+## finally, the server config
 
+```
+vi /etc/wireguard/wg0.conf
+```
+take note at the `ens4`, and the IP address like `10.0.0.x`.
 ```
 [Interface]
 Address = 10.0.0.1/24
@@ -64,22 +112,32 @@ PublicKey = CLIENT2/PUBLIC
 AllowedIPs = 10.0.0.3/32
 ```
 
+turn it on!
+
+```
+sudo wg-quick up wg0
+```
+
 ## filewall settings
 
-Open WireGuard port through firewall
+```
+# Open WireGuard port through firewall
 sudo ufw allow 51820/udp
-open port for SSH as well
+# open port for SSH as well
 sudo ufw allow 22/tcp
-Turn on firewall
+# Turn on firewall
 sudo ufw enable
-Check firewall status, make sure the port for WireGuard and SSH are opened.
+# Check firewall status, make sure the port for WireGuard and SSH are opened.
 sudo ufw status verbose
-Set MTU size to 1360 due to limitation in Google Cloud Platform.
+# Set MTU size to 1360 due to limitation in Google Cloud Platform.
 sudo ip link set dev wg0 mtu 1360
+```
 
 ## the clients...
 
-here pls take note of the 10.0.0.3.. need to map to the peer of the server side settings!
+here pls take note of the `10.0.0.3/24` need to map to the peer of the server side settings!
+
+each client will use unique address, but same endpoint, cos I want to only use one VM on gcp for multiple person. `8.8.8.8` added to DNS.
 
 ```
 [Interface]
@@ -94,8 +152,11 @@ Endpoint = 35.198.200.65:51820
 ```
 
 to get the qr code
+
+```
 sudo apt install qrencode
 qrencode -t ansiutf8 < above.conf
+```
 
 ## some more important commands
 ```
