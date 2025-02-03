@@ -32,13 +32,24 @@ also, the client/peer of the server, is stored in memory, it is not explicitly s
 
 ## create a vm on gcp
 
-Create instance (e2-micro/ubuntu/default network, enable IP forwarding, use a reserved static ip, if you want to pay a bit more, but just make sure it has an external ip, then create)
-now we need to add filewall rules to allow udp:51820 and tcp:22. so vpn and ssh can pass
+Create instance at compute engine with below config
+* e2-micro
+* ubuntu
+* default network, enable IP forwarding
+* use a reserved static ip, if you want to pay a bit more, but just make sure it has an external ip
+then create
+
+## filewall at vpc layer
+
+add filewall rules
+* udp:51820 (vpn), use a network tag, then tag the machine. or apply to all machines in the network (a bit overkill).
+* tcp:22 (ssh), you dont need to do this, google has default firewall rule to allow tcp:22 for all machines in default network.
+
+I did not try with my own VPC with cloudNAT. but it should work.
 
 
 ## install wireguard on vm
 
-commands
 
 ```
 sudo apt update && sudo apt upgrade -y
@@ -118,7 +129,7 @@ turn it on!
 sudo wg-quick up wg0
 ```
 
-## filewall settings
+## filewall at linux layer
 
 ```
 # Open WireGuard port through firewall
@@ -137,8 +148,14 @@ sudo ip link set dev wg0 mtu 1360
 
 here pls take note of the `10.0.0.3/24` need to map to the peer of the server side settings!
 
-each client will use unique address, but same endpoint, cos I want to only use one VM on gcp for multiple person. `8.8.8.8` added to DNS.
+each client will use unique address, but same endpoint, cos I want to only use one VM on gcp for multiple person. `8.8.8.8` added to DNS. 
 
+Each client needs its own conf because the Address, private key is different. Here I use client2 as an example.
+
+```
+vi client2.conf
+```
+the content. pay attention to the `Address`
 ```
 [Interface]
 PrivateKey = CLIENT1/PRIVATE=
@@ -155,8 +172,10 @@ to get the qr code
 
 ```
 sudo apt install qrencode
-qrencode -t ansiutf8 < above.conf
+qrencode -t ansiutf8 < client2.conf
 ```
+
+now download the wireguard app on your phone, scan the QR code. tada!
 
 ## some more important commands
 ```
@@ -173,3 +192,5 @@ below is imparative, lets avoid it..
 ```
 sudo wg set wg0 peer <YOUR_CLIENT_PUBLIC_KEY> allowed-ips <YOUR_CLIENT_VPN_IP>
 ```
+
+To make it extra safe, avoid port 51820.
